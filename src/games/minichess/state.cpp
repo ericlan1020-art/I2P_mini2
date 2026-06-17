@@ -75,7 +75,7 @@ int State::evaluate(
     if (this->game_state == WIN) {
         // 如果現在是 WIN，需要判斷是誰贏
         // 常見規則：step / player / last mover
-        return P_MAX;
+        return (this->player == 0 ? -P_MAX+1 : P_MAX-1);
     }
 
     if (this->game_state == DRAW) {
@@ -209,6 +209,8 @@ int State::evaluate(
 
         State opp_state = *this;
         opp_state.player = 1 - this->player;
+        opp_state.game_state = UNKNOWN;
+        opp_state.legal_actions.clear();
         opp_state.get_legal_actions();
 
         int oppn_mobility = opp_state.legal_actions.size();
@@ -414,29 +416,31 @@ void State::get_legal_actions_naive(){
                         }
                         for(int part=st; part<end; part+=1){
                             auto move_list = move_table_rook_bishop[part];
-                            for(int k=0; k<std::max(BOARD_H, BOARD_W); k+=1){
-                                int p[2] = {move_list[k][0] + i, move_list[k][1] + j};
+                            for(int k = 0; k < 7; k++){
+                                int nr = i + move_list[k][0];
+                                int nc = j + move_list[k][1];
 
-                                if(p[0]>=BOARD_H || p[0]<0 || p[1]>=BOARD_W || p[1]<0){
+                                // out of board
+                                if(nr < 0 || nr >= BOARD_H || nc < 0 || nc >= BOARD_W){
                                     break;
                                 }
-                                now_piece = self_board[p[0]][p[1]];
-                                if(now_piece){
+
+                                // blocked by own piece
+                                if(self_board[nr][nc]){
                                     break;
                                 }
 
-                                all_actions.push_back(Move(Point(i, j), Point(p[0], p[1])));
+                                all_actions.push_back(Move(Point(i, j), Point(nr, nc)));
 
-                                oppn_piece = oppn_board[p[0]][p[1]];
-                                if(oppn_piece){
-                                    if(oppn_piece==6){
+                                // capture opponent
+                                if(oppn_board[nr][nc]){
+                                    if(oppn_board[nr][nc] == 6){
                                         this->game_state = WIN;
                                         this->legal_actions = all_actions;
                                         return;
-                                    }else{
-                                        break;
                                     }
-                                };
+                                    break;
+                                }
                             }
                         }
                         break;
@@ -475,25 +479,27 @@ void State::get_legal_actions_naive(){
                     }    
                         //--------------^
                     case 6: //king
-                        for(auto move: move_table_king){
-                            int p[2] = {move[0] + i, move[1] + j};
+                        for (auto move : move_table_king) {
+                            int nr = i + move[0];
+                            int nc = j + move[1];
 
-                            if(p[0]>=BOARD_H || p[0]<0 || p[1]>=BOARD_W || p[1]<0){
-                                continue;
-                            }
-                            now_piece = self_board[p[0]][p[1]];
-                            if(now_piece){
+                            if (nr < 0 || nr >= BOARD_H || nc < 0 || nc >= BOARD_W) {
                                 continue;
                             }
 
-                            all_actions.push_back(Move(Point(i, j), Point(p[0], p[1])));
+                            // self block
+                            if (self_board[nr][nc]) {
+                                continue;
+                            }
 
-                            oppn_piece = oppn_board[p[0]][p[1]];
-                            if(oppn_piece==6){
+                            // capture check (important)
+                            if (oppn_board[nr][nc] == 6) {
                                 this->game_state = WIN;
-                                this->legal_actions = all_actions;
+                                this->legal_actions.push_back(Move(Point(i, j), Point(nr, nc)));
                                 return;
                             }
+
+                            all_actions.push_back(Move(Point(i, j), Point(nr, nc)));
                         }
                         break;
                 }
