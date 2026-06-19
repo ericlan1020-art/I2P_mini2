@@ -21,7 +21,7 @@ int MiniMax::eval_ctx(
     int beta
 ){
     if(state->game_state == WIN){
-        return P_MAX - ply;
+        return (state->player == 0 ? 1 : -1) * (P_MAX - ply);
     }
     if(state->game_state == DRAW){
         return 0;
@@ -63,16 +63,15 @@ int MiniMax::eval_ctx(
     /* === Repetition check (game-specific) === */
     history.push(state->hash());
     int rep_score;
-    if(state->check_repetition(history, rep_score)){
+   if(state->check_repetition(history, rep_score)){
         history.pop(state->hash());
-        return rep_score;
+        return (state->player == 0 ? 1 : -1) * rep_score;
     }
     
 
     if(depth <= 0){
-        int score = state->evaluate(
-            p.use_kp_eval, p.use_eval_mobility, &history
-        ); 
+        int score = state->evaluate(p.use_kp_eval, p.use_eval_mobility, &history);
+        score = (state->player == 0 ? 1 : -1) * score;
         history.pop(state->hash());
         return score;
     }
@@ -165,16 +164,22 @@ SearchResult MiniMax::search(
           << std::endl;
     std::cout << "LEGAL MOVES: " << state->legal_actions.size() << std::endl;
     //-----|
-    if(state->game_state != UNKNOWN){
+    if(state->game_state == WIN){
+        SearchResult result;
+        result.score = P_MAX;
+        result.best_move = state->legal_actions.empty()
+            ? Move(Point(0,0), Point(0,0))
+            : state->legal_actions[0];
+        result.depth = depth;
+        return result;
+    }
+
+    if(state->game_state == DRAW){
         SearchResult result;
         result.score = 0;
-
-        if(state->legal_actions.empty()){
-            result.best_move = Move(Point(0,0), Point(0,0));
-        } else {
-            result.best_move = state->legal_actions[0];
-        }
-
+        result.best_move = state->legal_actions.empty()
+            ? Move(Point(0,0), Point(0,0))
+            : state->legal_actions[0];
         result.depth = depth;
         return result;
     }
@@ -189,7 +194,7 @@ SearchResult MiniMax::search(
     SearchResult result;
     result.depth = depth;
 
-    if(!state->legal_actions.size()){
+    if(state->legal_actions.empty()){
         state->get_legal_actions();
     }
 
@@ -199,10 +204,10 @@ SearchResult MiniMax::search(
 
     std::sort(moves.begin(), moves.end(),
         [&](const Move& a, const Move& b) {
-
+    
             int ar = a.second.first, ac = a.second.second;
             int br = b.second.first, bc = b.second.second;
-
+    
             bool capA = state->board.board[opp][ar][ac] != 0;
             bool capB = state->board.board[opp][br][bc] != 0;
 

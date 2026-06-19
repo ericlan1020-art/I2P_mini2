@@ -150,7 +150,8 @@ int State::evaluate(
 
                     // PST
                     if(q >= 1 && q <= 6){
-                        oppn_score += pst[q-1][BOARD_H-1-r][c]; 
+                        //oppn_score += pst[q-1][BOARD_H-1-r][c]; 
+                        oppn_score += pst[q-1][r][c];
                         // mirror board perspective
                     }
 
@@ -313,8 +314,11 @@ State* State::next_state(const Move& move){
     next.board[p][to.first][to.second] = moved;
 
     State* ns = new State(next, opp);
-    ns->zobrist_hash = h;
+    ns->zobrist_hash = ns->compute_hash_full();
     ns->zobrist_valid = true;
+    ns->game_state = UNKNOWN;
+    ns->legal_actions.clear();
+    ns->get_legal_actions();
     return ns;
 }
 
